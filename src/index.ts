@@ -29,5 +29,19 @@ app.onError((err, c) => {
   return c.json({ error: "Internal Server Error" }, 500);
 });
 
-serve({ fetch: app.fetch, port: config.port });
+const server = serve({ fetch: app.fetch, port: config.port });
 console.log(`🚀 sgsyen-api running on port ${config.port}`);
+
+// 优雅关闭（Cloud Run SIGTERM 支持）
+const shutdown = () => {
+  console.log("⏳ 收到关闭信号，正在优雅退出...");
+  server.close(() => {
+    console.log("✅ 服务已安全关闭");
+    process.exit(0);
+  });
+  // 超过 10s 强制退出（Cloud Run 默认 deadline）
+  setTimeout(() => process.exit(1), 10000);
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

@@ -50,7 +50,7 @@ reports.get("/:slug/download", async (c) => {
   if (authError || !user) return c.json({ error: "Unauthorized" }, 401);
 
   // 检查 sgsyen 订阅
-  const { data: sub } = await supabase
+  const { data: sub, error: subError } = await supabase
     .from("subscriptions")
     .select("status")
     .eq("user_id", user.id)
@@ -58,6 +58,11 @@ reports.get("/:slug/download", async (c) => {
     .eq("status", "active")
     .single();
 
+  if (subError && subError.code !== "PGRST116") {
+    // PGRST116 = 0 rows，属于正常无订阅；其他错误是 DB 故障
+    console.error("[reports/download] 订阅查询失败:", subError);
+    return c.json({ error: "服务器内部错误" }, 500);
+  }
   if (!sub) return c.json({ error: "需要开通 SGSYEN 会员" }, 403);
 
   const { data: report } = await supabase
